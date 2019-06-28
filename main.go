@@ -9,8 +9,9 @@ import (
   "k8s.io/client-go/tools/clientcmd"
   "k8s.io/client-go/kubernetes"
   apiv1 "k8s.io/api/core/v1"
+  batchv1 "k8s.io/api/batch/v1"
+  metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
 
 const REDIS_URL string = "0.0.0.0"
 const REDIS_PORT int = 6379
@@ -48,14 +49,13 @@ func main() {
           continue
         }
 
+        fmt.Printf("Starting job: %s\n", job)
         go startJob(job, jid)
 
         _, delErr := client.Del(job).Result()
 
         if delErr != nil {
           fmt.Printf("Error removing job %s: %v\n", job, err)
-        } else {
-          fmt.Printf("Finished starting job %s\n", job)
         }
       }
     }
@@ -63,7 +63,6 @@ func main() {
 }
 
 func startJob(key string, payload string) {
-  fmt.Printf("Starting job: %s\n", key)
   // TODO: Move kube stuff to method
   kubeconfig := "./config"
 
@@ -78,5 +77,30 @@ func startJob(key string, payload string) {
   }
 
   jobClient := clientset.BatchV1().Jobs(apiv1.NamespaceDefault)
-  fmt.Println(jobClient)
+  job := &batchv1.Job{
+    ObjectMeta: metav1.ObjectMeta{
+        Name: "demo-job",
+        Namespace: "default",
+    },
+    Spec: batchv1.JobSpec{
+        Template: apiv1.PodTemplateSpec{
+            Spec: apiv1.PodSpec{
+                RestartPolicy: "OnFailure",
+                Containers: []apiv1.Container{
+                    {
+                        Name:  "demo",
+                        Image: "myimage",
+                    },
+                },
+            },
+        },
+      },
+    }
+
+  result, jobErr := jobClient.Create(job)
+  if jobErr == nil {
+    fmt.Printf("Job started: %v\n", result)
+  } else {
+    fmt.Printf("Error starting job: %v", jobErr)
+  }
 }
