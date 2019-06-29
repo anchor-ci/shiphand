@@ -1,8 +1,9 @@
 package main
 
 import (
-	"fmt"
-	"os"
+    "log"
+    "strings"
+    "encoding/json"
 	//"path/filepath"
 	"github.com/go-redis/redis"
 	batchv1 "k8s.io/api/batch/v1"
@@ -17,11 +18,19 @@ const REDIS_URL string = "0.0.0.0"
 const REDIS_PORT int = 6379
 const JOB_KEY string = "job:v1:*"
 
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
+// Nested struct representing an instruction set for a job
+type InstructionSet struct {
+  Id string `json:"id"`
+  Instructions []string `json:"instructions"`
+  JobId string `json:"job_id"`
+}
+
+// Struct representing a job request from redis
+type JobRequest struct {
+  JobId string `json:"id"`
+  State string `json:"state"`
+  RepositoryId string `json:"repository_id"`
+  Instructions InstructionSet `json:"instruction_set"`
 }
 
 func main() {
@@ -45,17 +54,17 @@ func main() {
 
 				// If errors grabbing key, just skip iteration
 				if err != nil {
-					fmt.Printf("Unable to grab job payload for %s\n", job)
+					log.Printf("Unable to grab job payload for %s\n", job)
 					continue
 				}
 
-				fmt.Printf("Starting job: %s\n", job)
+				log.Printf("Starting job: %s\n", job)
 				go startJob(job, jid)
 
 				_, delErr := client.Del(job).Result()
 
 				if delErr != nil {
-					fmt.Printf("Error removing job %s: %v\n", job, err)
+					log.Printf("Error removing job %s: %v\n", job, err)
 				}
 			}
 		}
@@ -66,20 +75,30 @@ func startJob(key string, payload string) {
 	// TODO: Move kube stuff to method
 	kubeconfig := "./config"
 
+    // Services that queue up the jobs are written in Python and can possibly send a ' for a string instead of ", for now the fix lives here, in the future (TODO) it needs to move to the Python services.
+    r := strings.NewReplacer("'", "\"")
+    instructions := JobRequest{}
+    bytes := []byte(r.Replace(payload))
+
+    if err := json.Unmarshal(bytes, &instructions); err != nil {
+      log.Printf("Couldn't unmarshal json %+v\n", err)
+    }
+
+    log.Printf("Result is: %+v\n", instructions)
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		fmt.Printf("ERR CREATING KUBECONFIG %v\n", err)
+		log.Printf("ERR CREATING KUBECONFIG %v\n", err)
 	}
 
 	clientset, kubeErr := kubernetes.NewForConfig(config)
 	if kubeErr != nil {
-		fmt.Printf("Kubernetes connecting failure")
+		log.Printf("Kubernetes connecting failure")
 	}
 
 	jobClient := clientset.BatchV1().Jobs(apiv1.NamespaceDefault)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo-job",
+			Name:      "job-" + instructions.JobId,
 			Namespace: "default",
 		},
 		Spec: batchv1.JobSpec{
@@ -88,8 +107,9 @@ func startJob(key string, payload string) {
 					RestartPolicy: "OnFailure",
 					Containers: []apiv1.Container{
 						{
-							Name:  "demo",
-							Image: "myimage",
+							Name:  "job",
+                            Image: "debian:stable-slim",
+                            Command: instructions.Instructions.Instructions,
 						},
 					},
 				},
@@ -99,8 +119,8 @@ func startJob(key string, payload string) {
 
 	result, jobErr := jobClient.Create(job)
 	if jobErr == nil {
-		fmt.Printf("Job started: %v\n", result)
+		log.Printf("Job started: %v\n", result)
 	} else {
-		fmt.Printf("Error starting job: %v", jobErr)
+		log.Printf("Error starting job: %v", jobErr)
 	}
 }
