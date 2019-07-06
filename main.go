@@ -2,13 +2,8 @@ package main
 
 import (
     "log"
-    "encoding/json"
 	"github.com/go-redis/redis"
-	batchv1 "k8s.io/api/batch/v1"
-	apiv1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
+    "encoding/json"
 	"strconv"
 )
 
@@ -62,20 +57,22 @@ func main() {
 }
 
 func startJob(key string, payload string) {
-	// TODO: Move kube stuff to method
-	kubeconfig := "./config"
     var f interface{}
+    metadata := JobMetadata{}
 
-    instructions := JobRequest{}
-    bytes := []byte(payload)
-
-    if err := json.Unmarshal(bytes, &f); err != nil {
-        log.Printf("Couldn't unmarshal json %+v\n", err)
+    if err := json.Unmarshal([]byte(payload), &metadata); err != nil {
+      log.Printf("Couldn't unmarshal payload into metadata %+v\n", err)
     }
 
-    instructionSet := f.(map[string]interface{})["instruction_set"]   
-    tSet := instructionSet.(map[string]interface{})
+    if err := json.Unmarshal([]byte(payload), &f); err != nil {
+      log.Printf("Couldn't unmarshal payload %+v\n", err)
+    }
+
+    instructionSet := f.(map[string]interface{})
+    tSet := instructionSet["instruction_set"].(map[string]interface{})
     finalPayload, payloadErr := NewPayload(tSet)
+
+    finalPayload.Metadata = metadata
 
     if payloadErr != nil {
       log.Printf("Failed to create payload for %s\n", key)
@@ -83,51 +80,4 @@ func startJob(key string, payload string) {
     }
 
     log.Printf("%+v\n", finalPayload)
-
-    if false {
-      if err := json.Unmarshal(bytes, &instructions); err != nil {
-        log.Printf("Couldn't unmarshal json %+v\n", err)
-      }
-
-      log.Printf("Result is: %+v\n", instructions)
-      config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
-      if err != nil {
-          log.Printf("ERR CREATING KUBECONFIG %v\n", err)
-      }
-
-      clientset, kubeErr := kubernetes.NewForConfig(config)
-      if kubeErr != nil {
-          log.Printf("Kubernetes connecting failure")
-      }
-
-      jobClient := clientset.BatchV1().Jobs(apiv1.NamespaceDefault)
-      job := &batchv1.Job{
-          ObjectMeta: metav1.ObjectMeta{
-              Name:      "job-" + instructions.JobId,
-              // Namespace should probably be keyed on the owner
-              Namespace: "default",
-          },
-          Spec: batchv1.JobSpec{
-              Template: apiv1.PodTemplateSpec{
-                  Spec: apiv1.PodSpec{
-                      RestartPolicy: "OnFailure",
-                      Containers: []apiv1.Container{
-                          {
-                              Name:  "job",
-                              Image: "debian:stable-slim",
-                              Command: []string{},
-                          },
-                      },
-                  },
-              },
-          },
-      }
-
-      result, jobErr := jobClient.Create(job)
-      if jobErr == nil {
-          log.Printf("Job started: %v\n", result)
-      } else {
-          log.Printf("Error starting job: %v", jobErr)
-      }
-    }
 }

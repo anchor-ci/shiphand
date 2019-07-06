@@ -1,10 +1,5 @@
-# Top level represents a job
 test:
-  # Key here is not the names, but the positions
-  # Second level represents a stage in that job
-  first:
+  dev:
+    image: debian:stable-slim
     script:
       - echo hi
-  second:
-    script:
-      - echo bye
