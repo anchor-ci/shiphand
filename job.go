@@ -5,6 +5,17 @@ type Job struct {
   Stages []Stage
 }
 
+func (j *Job) Run(metadata JobMetadata) error {
+  for _, stage := range j.Stages {
+    err := stage.Run(metadata)
+    if err != nil {
+      return err
+    }
+  }
+
+  return nil
+}
+
 func NewJob(name string, payload interface{}) (Job, error) {
   instance := Job{}
   transformedVal := payload.(map[string]interface{})

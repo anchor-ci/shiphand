@@ -1,6 +1,8 @@
 package main
 
 import (
+  "log"
+  "fmt"
   "errors"
 )
 
@@ -8,6 +10,14 @@ type Stage struct {
   Name string
   Instructions []string
   Image string
+}
+
+func (s *Stage) Run(metadata JobMetadata) error {
+  pod, err := NewControlledPod(fmt.Sprintf("%s-%s", metadata.Id, s.Name), s.Image)
+
+  log.Printf("Created controlled pod: %+v\n", pod)
+
+  return err
 }
 
 func getBaseStage() Stage {

@@ -79,5 +79,11 @@ func startJob(key string, payload string) {
       return
     }
 
-    log.Printf("%+v\n", finalPayload)
+    log.Printf("Created payload: %d, starting.\n", finalPayload.Metadata.Id)
+
+    err := finalPayload.Run()
+
+    if err != nil {
+      log.Printf("Error running job: %+v\n", err)
+    }
 }
