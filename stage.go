@@ -13,9 +13,18 @@ type Stage struct {
 }
 
 func (s *Stage) Run(metadata JobMetadata) error {
-  pod, err := NewControlledPod(fmt.Sprintf("%s-%s", metadata.Id, s.Name), s.Image)
+  // Create an anchor ci managed pod
+  podId := fmt.Sprintf("%s-%s", metadata.Id, s.Name)
+  pod, err := NewControlledPod(podId, s.Image)
 
-  log.Printf("Created controlled pod: %+v\n", pod)
+  log.Printf("Created controlled pod: %s\n", pod.Id)
+
+  // Wait for pod to start before sending instructions
+  pod.WaitForStart()
+
+  log.Printf("Controlled pod %s is ready to take commands\n", pod.Id)
+
+  // Send series of instructions to pod
 
   return err
 }
