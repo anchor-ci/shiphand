@@ -3,9 +3,14 @@ package main
 import (
   "fmt"
   "errors"
+  "os"
 
-   apiv1 "k8s.io/api/core/v1"
-   metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+  _ "k8s.io/apimachinery/pkg/runtime"
+  "k8s.io/client-go/tools/remotecommand"
+  "k8s.io/client-go/kubernetes/scheme"
+  "k8s.io/client-go/tools/clientcmd"
+  apiv1 "k8s.io/api/core/v1"
+  metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var PODS_NAMESPACE = "default"
@@ -15,7 +20,7 @@ type ControlledPod struct {
   Id string
 }
 
-func NewControlledPod(name string, image string) (ControlledPod, error) {
+func NewControlledPod(name, image string) (ControlledPod, error) {
   instance := ControlledPod{}
 
   // TODO: Uncouple the kube client stuff from here
@@ -85,6 +90,45 @@ func (c *ControlledPod) WaitForStart() error {
   return errors.New("Timed out")
 }
 
-//func (c *ControlledPod) RunCommand(command string) (int, error) {
-//  return 0, nil
-//}
+func (c *ControlledPod) RunCommand(command string) (int, error) {
+  clientset := getKubernetesClient("./config")
+  restClient := clientset.CoreV1().RESTClient()
+  req := restClient.Post().
+                    Resource("pods").
+                    Name(c.Id).
+                    Namespace(PODS_NAMESPACE).
+                    SubResource("exec").
+                    Param("container", "job")
+
+  req.VersionedParams(&apiv1.PodExecOptions{
+    Container: "job",
+    Command:   []string{"/bin/sh", "-c", command},
+    Stdin:     false,
+    Stdout:    true,
+  }, scheme.ParameterCodec)
+
+  restconf, cfgErr := clientcmd.BuildConfigFromFlags("", "./config")
+
+  if cfgErr != nil {
+    return 1, cfgErr
+  }
+
+  exec, err := remotecommand.NewSPDYExecutor(restconf,"POST", req.URL())
+  if err != nil {
+    return 1, err
+  }
+
+  opts := remotecommand.StreamOptions{
+    Stdin: nil,
+    Stdout: os.Stdout,
+    Stderr: nil,
+    Tty: false,
+  }
+
+  execErr := exec.Stream(opts)
+  if execErr != nil {
+    return 1, execErr
+  }
+
+  return 0, nil
+}

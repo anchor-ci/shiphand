@@ -24,7 +24,15 @@ func (s *Stage) Run(metadata JobMetadata) error {
 
   log.Printf("Controlled pod %s is ready to take commands\n", pod.Id)
 
-  // Send series of instructions to pod
+  // Iterate through instructions and send to pod for execution
+  for _, instruction := range s.Instructions {
+    // Send series of instructions to pod
+    _, execErr := pod.RunCommand(instruction)
+
+    if execErr != nil {
+      log.Printf("Exec error: %+v\n", execErr)
+    }
+  }
 
   return err
 }
