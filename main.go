@@ -1,9 +1,9 @@
 package main
 
 import (
-    "log"
+	"encoding/json"
 	"github.com/go-redis/redis"
-    "encoding/json"
+	"log"
 	"strconv"
 )
 
@@ -13,9 +13,9 @@ const JOB_KEY string = "job:v1:*"
 
 // Struct representing a job request from redis
 type JobRequest struct {
-  JobId string `json:"id"`
-  State string `json:"state"`
-  RepositoryId string `json:"repository_id"`
+	JobId        string `json:"id"`
+	State        string `json:"state"`
+	RepositoryId string `json:"repository_id"`
 }
 
 func main() {
@@ -57,33 +57,33 @@ func main() {
 }
 
 func startJob(key string, payload string) {
-    var f interface{}
-    metadata := JobMetadata{}
+	var f interface{}
+	metadata := JobMetadata{}
 
-    if err := json.Unmarshal([]byte(payload), &metadata); err != nil {
-      log.Printf("Couldn't unmarshal payload into metadata %+v\n", err)
-    }
+	if err := json.Unmarshal([]byte(payload), &metadata); err != nil {
+		log.Printf("Couldn't unmarshal payload into metadata %+v\n", err)
+	}
 
-    if err := json.Unmarshal([]byte(payload), &f); err != nil {
-      log.Printf("Couldn't unmarshal payload %+v\n", err)
-    }
+	if err := json.Unmarshal([]byte(payload), &f); err != nil {
+		log.Printf("Couldn't unmarshal payload %+v\n", err)
+	}
 
-    instructionSet := f.(map[string]interface{})
-    tSet := instructionSet["instruction_set"].(map[string]interface{})
-    finalPayload, payloadErr := NewPayload(tSet)
+	instructionSet := f.(map[string]interface{})
+	tSet := instructionSet["instruction_set"].(map[string]interface{})
+	finalPayload, payloadErr := NewPayload(tSet)
 
-    finalPayload.Metadata = metadata
+	finalPayload.Metadata = metadata
 
-    if payloadErr != nil {
-      log.Printf("Failed to create payload for %s\n", key)
-      return
-    }
+	if payloadErr != nil {
+		log.Printf("Failed to create payload for %s\n", key)
+		return
+	}
 
-    log.Printf("Created payload: %d, starting.\n", finalPayload.Metadata.Id)
+	log.Printf("Created payload: %d, starting.\n", finalPayload.Metadata.Id)
 
-    err := finalPayload.Run()
+	err := finalPayload.Run()
 
-    if err != nil {
-      log.Printf("Error running job: %+v\n", err)
-    }
+	if err != nil {
+		log.Printf("Error running job: %+v\n", err)
+	}
 }

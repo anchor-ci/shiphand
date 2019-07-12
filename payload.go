@@ -1,43 +1,43 @@
 package main
 
 import (
-  "errors"
+	"errors"
 )
 
 type Payload struct {
-  Metadata JobMetadata
-  Jobs []Job
+	Metadata JobMetadata
+	Jobs     []Job
 }
 
 func NewPayload(payload map[string]interface{}) (Payload, error) {
-  instance := Payload{}
+	instance := Payload{}
 
-  if val, ok := payload["instructions"]; ok {
-    transformedVal := val.(map[string]interface{})
+	if val, ok := payload["instructions"]; ok {
+		transformedVal := val.(map[string]interface{})
 
-    for k, v := range transformedVal {
-      job, err := NewJob(k, v)
+		for k, v := range transformedVal {
+			job, err := NewJob(k, v)
 
-      if err != nil {
-        return instance, err
-      }
+			if err != nil {
+				return instance, err
+			}
 
-      instance.Jobs = append(instance.Jobs, job)
-    }
-  } else {
-    return instance, errors.New("No instructions defined")
-  }
+			instance.Jobs = append(instance.Jobs, job)
+		}
+	} else {
+		return instance, errors.New("No instructions defined")
+	}
 
-  return instance, nil
+	return instance, nil
 }
 
 func (p *Payload) Run() error {
-  for _, job := range p.Jobs {
-    err := job.Run(p.Metadata)
-    if err != nil {
-      return err
-    }
-  }
+	for _, job := range p.Jobs {
+		err := job.Run(p.Metadata)
+		if err != nil {
+			return err
+		}
+	}
 
-  return nil
+	return nil
 }
