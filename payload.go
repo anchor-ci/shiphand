@@ -1,7 +1,7 @@
 package main
 
 import (
-	"errors"
+  "errors"
 )
 
 type Payload struct {
@@ -33,7 +33,7 @@ func NewPayload(payload map[string]interface{}) (Payload, error) {
 
 func (p *Payload) Run() error {
 	for _, job := range p.Jobs {
-		err := job.Run(p.Metadata)
+		_, err := job.Run(p.Metadata)
 		if err != nil {
 			return err
 		}
