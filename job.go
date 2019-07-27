@@ -1,7 +1,7 @@
 package main
 
 import (
-  "errors"
+	"errors"
 )
 
 type Job struct {
@@ -16,15 +16,15 @@ func (j *Job) Run(metadata JobMetadata) (bool, error) {
 			return false, err
 		}
 
-        pass, interErr := j.InterStage(&stage)
+		pass, interErr := j.InterStage(&stage)
 
-        if interErr != nil {
-          return false, interErr
-        }
+		if interErr != nil {
+			return false, interErr
+		}
 
-        if !pass {
-          return pass, nil
-        }
+		if !pass {
+			return pass, nil
+		}
 	}
 
 	return true, nil
@@ -35,15 +35,15 @@ func (j *Job) Run(metadata JobMetadata) (bool, error) {
 // a bool indicating if the job should continue, error
 // indicating an error within the function
 func (j *Job) InterStage(s *Stage) (bool, error) {
-  if !s.Complete {
-    return false, errors.New("Stage %s didn't complete")
-  }
+	if !s.Complete {
+		return false, errors.New("Stage %s didn't complete")
+	}
 
-  if s.Complete && !s.Success {
-    return false, nil
-  }
+	if s.Complete && !s.Success {
+		return false, nil
+	}
 
-  return s.Complete && s.Success, nil
+	return s.Complete && s.Success, nil
 }
 
 func NewJob(name string, payload interface{}) (Job, error) {

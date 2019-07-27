@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-	"os"
+    "strings"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,7 +90,8 @@ func (c *ControlledPod) WaitForStart() error {
 	return errors.New("Timed out")
 }
 
-func (c *ControlledPod) RunCommand(command string) (int, error) {
+func (c *ControlledPod) RunCommand(command string) (History, error) {
+    history := History{}
 	clientset := getKubernetesClient("./config")
 	restClient := clientset.CoreV1().RESTClient()
 	req := restClient.Post().
@@ -105,30 +106,42 @@ func (c *ControlledPod) RunCommand(command string) (int, error) {
 		Command:   []string{"/bin/sh", "-c", command},
 		Stdin:     false,
 		Stdout:    true,
+        Stderr:    true,
+        TTY:       true,
 	}, scheme.ParameterCodec)
 
 	restconf, cfgErr := clientcmd.BuildConfigFromFlags("", "./config")
 
 	if cfgErr != nil {
-		return 1, cfgErr
+		return history, cfgErr
 	}
 
 	exec, err := remotecommand.NewSPDYExecutor(restconf, "POST", req.URL())
+
 	if err != nil {
-		return 1, err
+		return history, err
 	}
+
+    outputBuffer := &strings.Builder{}
+    errBuffer := &strings.Builder{}
 
 	opts := remotecommand.StreamOptions{
 		Stdin:  nil,
-		Stdout: os.Stdout,
-		Stderr: nil,
-		Tty:    false,
+		Stdout: outputBuffer,
+		Stderr: errBuffer,
+		Tty:    true,
 	}
 
 	execErr := exec.Stream(opts)
-	if execErr != nil {
-		return 1, execErr
-	}
 
-	return 0, nil
+    if execErr != nil {
+      history.Failed = true
+      history.FailureText = execErr.Error()
+    } else {
+      history.Succeeded = true
+    }
+
+    history.Text = outputBuffer.String()
+
+	return history, nil
 }

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+    "encoding/json"
+    "net/http"
 )
 
 type Stage struct {
@@ -11,19 +13,19 @@ type Stage struct {
 	Instructions []string
 	Image        string
 	Complete     bool
-    Success      bool
+	Success      bool
 }
 
 func (s *Stage) Run(metadata JobMetadata) error {
-    var retErr error = nil
+	var retErr error = nil
 
 	// Create an anchor ci managed pod
 	podId := fmt.Sprintf("%s-%s", metadata.Id, s.Name)
 	pod, err := NewControlledPod(podId, s.Image)
 
-    if err != nil {
-      retErr = err
-    }
+	if err != nil {
+		retErr = err
+	}
 
 	log.Printf("Created controlled pod: %s\n", pod.Id)
 
@@ -35,22 +37,40 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	// Iterate through instructions and send to pod for execution
 	for index, instruction := range s.Instructions {
 		// Send series of instructions to pod
-		_, execErr := pod.RunCommand(instruction)
+		history, execErr := pod.RunCommand(instruction)
 
-		if execErr != nil {
-			log.Printf("Exec error: %+v\n", execErr)
-            s.Success = false
-            break
+		if execErr != nil || history.Failed {
+			s.Success = false
+			break
 		}
 
-        if index == len(s.Instructions) - 1 {
-            s.Success = true
+		// Means we hit the end of all instructions, can be marked as success
+		if index == len(s.Instructions)-1 {
+			s.Success = true
+		}
+
+        reportErr := s.ReportStatus(history)
+
+        // Kill job, can't connect to job server
+        if reportErr != nil {
+          s.Success = false
+          s.Complete = true
         }
 	}
 
-    s.Complete = true
+	s.Complete = true
 
 	return retErr
+}
+
+func (s *Stage) ReportStatus(history History) error {
+  data, err := json.Marshal(history)
+  if err != nil {
+    return errors.New("Couldn't connect to jobs API")
+  }
+
+  resp, httpErr := http.Put("http://172.18.0.5:8080/")
+  return nil
 }
 
 func getBaseStage() Stage {
@@ -58,7 +78,7 @@ func getBaseStage() Stage {
 
 	instance.Image = "debian:stable-slim"
 	instance.Complete = false
-    instance.Success = false
+	instance.Success = false
 
 	return instance
 }
