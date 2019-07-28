@@ -1,12 +1,14 @@
 package main
-
 import (
 	"errors"
 	"fmt"
 	"log"
     "encoding/json"
     "net/http"
+    "bytes"
 )
+
+const JOB_URL = "172.18.0.6:8080"
 
 type Stage struct {
 	Name         string
@@ -27,10 +29,17 @@ func (s *Stage) Run(metadata JobMetadata) error {
 		retErr = err
 	}
 
-	log.Printf("Created controlled pod: %s\n", pod.Id)
-
 	// Wait for pod to start before sending instructions
 	pod.WaitForStart()
+
+    updateErr := s.UpdateJobState(metadata, "RUNNING")
+
+    if updateErr != nil {
+      s.Success = false
+      s.Complete = true
+      fmt.Printf("%+v\n", updateErr)
+      return updateErr
+    }
 
 	log.Printf("Controlled pod %s is ready to take commands\n", pod.Id)
 
@@ -55,6 +64,7 @@ func (s *Stage) Run(metadata JobMetadata) error {
         if reportErr != nil {
           s.Success = false
           s.Complete = true
+          return errors.New("Stage run error")
         }
 	}
 
@@ -63,13 +73,44 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	return retErr
 }
 
+// TODO: Move job metadata to stage field
+func (s *Stage) UpdateJobState(metadata JobMetadata, state string) error {
+  //Sends a PUT request to the job API that updates the current state of the job
+
+  url := "http://" + JOB_URL + "/jobs/" + metadata.Id
+  payload := []byte(fmt.Sprintf(`{"state":"%s"}`, state))
+
+  req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
+
+  if reqErr != nil {
+    return reqErr
+  }
+
+  req.Header.Set("Content-Type", "application/json")
+  client := &http.Client{}
+  resp, err := client.Do(req)
+
+  if err != nil {
+    return err
+  }
+
+  defer resp.Body.Close()
+
+  if resp.Status != "204" {
+    errors.New("There was an error updating the job information")
+  }
+
+  return nil
+}
+
 func (s *Stage) ReportStatus(history History) error {
   data, err := json.Marshal(history)
+  fmt.Println(data)
+
   if err != nil {
     return errors.New("Couldn't connect to jobs API")
   }
 
-  resp, httpErr := http.Put("http://172.18.0.5:8080/")
   return nil
 }
 
