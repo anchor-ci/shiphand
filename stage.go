@@ -11,6 +11,7 @@ import (
 const JOB_URL = "172.18.0.6:8080"
 
 type Stage struct {
+    Metadata     JobMetadata
 	Name         string
 	Instructions []string
 	Image        string
@@ -19,10 +20,11 @@ type Stage struct {
 }
 
 func (s *Stage) Run(metadata JobMetadata) error {
+    s.Metadata = metadata
 	var retErr error = nil
 
 	// Create an anchor ci managed pod
-	podId := fmt.Sprintf("%s-%s", metadata.Id, s.Name)
+	podId := fmt.Sprintf("%s-%s", s.Metadata.Id, s.Name)
 	pod, err := NewControlledPod(podId, s.Image)
 
 	if err != nil {
@@ -32,12 +34,11 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	// Wait for pod to start before sending instructions
 	pod.WaitForStart()
 
-    updateErr := s.UpdateJobState(metadata, "RUNNING")
+    updateErr := s.UpdateJobState("RUNNING")
 
     if updateErr != nil {
       s.Success = false
       s.Complete = true
-      fmt.Printf("%+v\n", updateErr)
       return updateErr
     }
 
@@ -64,6 +65,7 @@ func (s *Stage) Run(metadata JobMetadata) error {
         if reportErr != nil {
           s.Success = false
           s.Complete = true
+          log.Printf("Error updating history: %+v\n", reportErr)
           return errors.New("Stage run error")
         }
 	}
@@ -73,11 +75,10 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	return retErr
 }
 
-// TODO: Move job metadata to stage field
-func (s *Stage) UpdateJobState(metadata JobMetadata, state string) error {
+func (s *Stage) UpdateJobState(state string) error {
   //Sends a PUT request to the job API that updates the current state of the job
 
-  url := "http://" + JOB_URL + "/jobs/" + metadata.Id
+  url := "http://" + JOB_URL + "/jobs/" + s.Metadata.Id
   payload := []byte(fmt.Sprintf(`{"state":"%s"}`, state))
 
   req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
@@ -96,8 +97,8 @@ func (s *Stage) UpdateJobState(metadata JobMetadata, state string) error {
 
   defer resp.Body.Close()
 
-  if resp.Status != "204" {
-    errors.New("There was an error updating the job information")
+  if resp.StatusCode != 204 {
+    return errors.New("There was an error updating the job information")
   }
 
   return nil
@@ -105,10 +106,31 @@ func (s *Stage) UpdateJobState(metadata JobMetadata, state string) error {
 
 func (s *Stage) ReportStatus(history History) error {
   data, err := json.Marshal(history)
-  fmt.Println(data)
+  payload := []byte(fmt.Sprintf(`{"history":[%s]}`, data))
 
   if err != nil {
     return errors.New("Couldn't connect to jobs API")
+  }
+
+  url := "http://" + JOB_URL + "/histories/" + s.Metadata.HistoryId
+  req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
+
+  if reqErr != nil {
+    return reqErr
+  }
+
+  req.Header.Set("Content-Type", "application/json")
+  client := &http.Client{}
+  resp, err := client.Do(req)
+
+  if err != nil {
+    return err
+  }
+
+  defer resp.Body.Close()
+
+  if resp.StatusCode != 204 {
+    return errors.New("There was an error updating the job information")
   }
 
   return nil

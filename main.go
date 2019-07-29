@@ -1,6 +1,7 @@
 package main
 
 import (
+    "github.com/buger/jsonparser"
 	"encoding/json"
 	"github.com/go-redis/redis"
 	"log"
@@ -67,6 +68,12 @@ func startJob(key string, payload string) {
 	if err := json.Unmarshal([]byte(payload), &f); err != nil {
 		log.Printf("Couldn't unmarshal payload %+v\n", err)
 	}
+
+    if historyId, jsonErr := jsonparser.GetString([]byte(payload), "history", "id"); jsonErr == nil {
+      metadata.HistoryId = historyId
+    } else {
+      log.Printf("Couldn't get history ID from: %s\n", payload)
+    }
 
 	instructionSet := f.(map[string]interface{})
 	tSet := instructionSet["instruction_set"].(map[string]interface{})
