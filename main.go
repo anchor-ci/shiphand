@@ -2,14 +2,15 @@ package main
 
 import (
     "github.com/buger/jsonparser"
-	"encoding/json"
 	"github.com/go-redis/redis"
+
+    "os"
+	"encoding/json"
 	"log"
-	"strconv"
 )
 
-const REDIS_URL string = "0.0.0.0"
-const REDIS_PORT int = 6379
+var REDIS_URL string = os.Getenv("REDIS_URL")
+var REDIS_PORT string = os.Getenv("REDIS_PORT")
 const JOB_KEY string = "job:v1:*"
 
 // Struct representing a job request from redis
@@ -21,7 +22,7 @@ type JobRequest struct {
 
 func main() {
 	client := redis.NewClient(&redis.Options{
-		Addr: REDIS_URL + ":" + strconv.Itoa(REDIS_PORT),
+		Addr: REDIS_URL + ":" + REDIS_PORT,
 	})
 
 	_, err := client.Ping().Result()

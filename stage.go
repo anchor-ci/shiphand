@@ -6,9 +6,10 @@ import (
     "encoding/json"
     "net/http"
     "bytes"
+    "os"
 )
 
-const JOB_URL = "172.18.0.6:8080"
+var JOB_URL string = os.Getenv("JOB_URL")
 
 type Stage struct {
     Metadata     JobMetadata
@@ -47,15 +48,16 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	// Iterate through instructions and send to pod for execution
 	for index, instruction := range s.Instructions {
 		// Send series of instructions to pod
+        log.Printf("Running command %s", instruction)
 		history, execErr := pod.RunCommand(instruction)
 
 		if execErr != nil || history.Failed {
 			s.Success = false
-			break
 		}
 
 		// Means we hit the end of all instructions, can be marked as success
 		if index == len(s.Instructions)-1 {
+            s.Complete = true
 			s.Success = true
 		}
 
@@ -70,15 +72,14 @@ func (s *Stage) Run(metadata JobMetadata) error {
         }
 	}
 
-	s.Complete = true
-
+    pod.CleanupPod()
 	return retErr
 }
 
 func (s *Stage) UpdateJobState(state string) error {
   //Sends a PUT request to the job API that updates the current state of the job
 
-  url := "http://" + JOB_URL + "/jobs/" + s.Metadata.Id
+  url := JOB_URL + "/jobs/" + s.Metadata.Id
   payload := []byte(fmt.Sprintf(`{"state":"%s"}`, state))
 
   req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
@@ -112,7 +113,9 @@ func (s *Stage) ReportStatus(history History) error {
     return errors.New("Couldn't connect to jobs API")
   }
 
-  url := "http://" + JOB_URL + "/histories/" + s.Metadata.HistoryId
+  log.Printf("Updating history: %+v", history)
+
+  url := JOB_URL + "/histories/" + s.Metadata.HistoryId
   req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
 
   if reqErr != nil {

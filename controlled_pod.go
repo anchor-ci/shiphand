@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 )
 
@@ -18,13 +17,14 @@ var PODS_NAMESPACE = "default"
 type ControlledPod struct {
 	Pod *apiv1.Pod
 	Id  string
+    Name string
 }
 
 func NewControlledPod(name, image string) (ControlledPod, error) {
 	instance := ControlledPod{}
 
 	// TODO: Uncouple the kube client stuff from here
-	clientset := getKubernetesClient("./config")
+	clientset := getKubernetesClient(true, "")
 
 	req := &apiv1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -61,8 +61,7 @@ func NewControlledPod(name, image string) (ControlledPod, error) {
 // and ready to accept commands. Returns an
 // error if one occurs during pod startup
 func (c *ControlledPod) WaitForStart() error {
-	// TODO: Uncouple the kube client stuff from here
-	clientset := getKubernetesClient("./config")
+	clientset := getKubernetesClient(true, "")
 
 	api := clientset.CoreV1()
 	options := metav1.ListOptions{
@@ -92,7 +91,7 @@ func (c *ControlledPod) WaitForStart() error {
 
 func (c *ControlledPod) RunCommand(command string) (History, error) {
     history := History{}
-	clientset := getKubernetesClient("./config")
+	clientset := getKubernetesClient(true, "")
 	restClient := clientset.CoreV1().RESTClient()
 	req := restClient.Post().
 		Resource("pods").
@@ -110,11 +109,7 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
         TTY:       true,
 	}, scheme.ParameterCodec)
 
-	restconf, cfgErr := clientcmd.BuildConfigFromFlags("", "./config")
-
-	if cfgErr != nil {
-		return history, cfgErr
-	}
+    restconf := getRestConfig()
 
 	exec, err := remotecommand.NewSPDYExecutor(restconf, "POST", req.URL())
 
@@ -144,4 +139,18 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
     history.Text = outputBuffer.String()
 
 	return history, nil
+}
+
+func (p *ControlledPod) CleanupPod() error {
+  clientset := getKubernetesClient(true, "")
+  api := clientset.CoreV1().Pods(PODS_NAMESPACE)
+
+  deletePolicy := metav1.DeletePropagationForeground
+  if err := api.Delete(p.Id, &metav1.DeleteOptions{
+      PropagationPolicy: &deletePolicy,
+  }); err != nil {
+      return err
+  }
+
+  return nil
 }

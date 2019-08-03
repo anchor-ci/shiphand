@@ -3,8 +3,11 @@ FROM golang:1.12.7
 RUN mkdir -p /build
 WORKDIR /build
 
-COPY ./*.go ./
 COPY ./go.mod ./
+
+RUN go get
+
+COPY ./*.go ./
 
 RUN go build -o shiphand *.go
 

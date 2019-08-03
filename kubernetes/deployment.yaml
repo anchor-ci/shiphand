@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shiphand
+  labels:
+    app: shiphand
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shiphand
+  template:
+    metadata:
+      labels:
+        app: shiphand
+    spec:
+      containers:
+        - name: service
+          image: shiphand:latest
+          env:
+            - name: JOB_URL
+              value: http://192.168.39.42:30002/
+            - name: REDIS_URL
+              value: redis.default.svc.cluster.local
+            - name: REDIS_PORT
+              value: "6379"
