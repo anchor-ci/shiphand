@@ -106,7 +106,7 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 		Stdin:     false,
 		Stdout:    true,
         Stderr:    true,
-        TTY:       true,
+        TTY:       false,
 	}, scheme.ParameterCodec)
 
     restconf := getRestConfig()
@@ -124,7 +124,7 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 		Stdin:  nil,
 		Stdout: outputBuffer,
 		Stderr: errBuffer,
-		Tty:    true,
+		Tty:    false,
 	}
 
 	execErr := exec.Stream(opts)

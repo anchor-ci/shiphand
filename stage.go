@@ -51,14 +51,14 @@ func (s *Stage) Run(metadata JobMetadata) error {
         log.Printf("Running command %s", instruction)
 		history, execErr := pod.RunCommand(instruction)
 
-		if execErr != nil || history.Failed {
-			s.Success = false
-		}
-
 		// Means we hit the end of all instructions, can be marked as success
 		if index == len(s.Instructions)-1 {
             s.Complete = true
 			s.Success = true
+		}
+
+		if execErr != nil || history.Failed {
+			s.Success = false
 		}
 
         reportErr := s.ReportStatus(history)
@@ -71,6 +71,12 @@ func (s *Stage) Run(metadata JobMetadata) error {
           return errors.New("Stage run error")
         }
 	}
+
+    if s.Success {
+      s.UpdateJobState("SUCCESS")
+    } else {
+      s.UpdateJobState("FAILED")
+    }
 
     pod.CleanupPod()
 	return retErr
