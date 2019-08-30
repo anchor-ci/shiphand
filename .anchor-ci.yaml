@@ -1,0 +1,15 @@
+build:
+  make-image:
+    # Auto-build uses Heroku buildpacks to auto build Docker images
+    # This will run before the script block
+    auto-build:
+      buildpack: heroku/buildpacks # This tells it which buildpack to use, this is actually the default
+      image-name: shiphand:latest # Same as passing the -t tag to docker build, will also be used for pushing
+    script:
+      - echo "Done building!"
+
+test:
+  dev:
+    image: debian:stable-slim
+    script:
+      - echo hi

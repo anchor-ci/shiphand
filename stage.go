@@ -1,27 +1,35 @@
 package main
+
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-    "encoding/json"
-    "net/http"
-    "bytes"
-    "os"
+	"net/http"
+	"os"
 )
 
 var JOB_URL string = os.Getenv("JOB_URL")
 
 type Stage struct {
-    Metadata     JobMetadata
-	Name         string
-	Instructions []string
-	Image        string
-	Complete     bool
-	Success      bool
+	Metadata JobMetadata
+    Image    string
+    Instructions []string
+	Name     string
+	Complete bool
+	Success  bool
+}
+
+type StageConfig struct {
+	Clone     bool
+	AutoBuild AutoBuildConfig
+	Script    []string
+	Image     string
 }
 
 func (s *Stage) Run(metadata JobMetadata) error {
-    s.Metadata = metadata
+	s.Metadata = metadata
 	var retErr error = nil
 
 	// Create an anchor ci managed pod
@@ -35,25 +43,25 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	// Wait for pod to start before sending instructions
 	pod.WaitForStart()
 
-    updateErr := s.UpdateJobState("RUNNING")
+	updateErr := s.UpdateJobState("RUNNING")
 
-    if updateErr != nil {
-      s.Success = false
-      s.Complete = true
-      return updateErr
-    }
+	if updateErr != nil {
+		s.Success = false
+		s.Complete = true
+		return updateErr
+	}
 
 	log.Printf("Controlled pod %s is ready to take commands\n", pod.Id)
 
 	// Iterate through instructions and send to pod for execution
 	for index, instruction := range s.Instructions {
 		// Send series of instructions to pod
-        log.Printf("Running command %s", instruction)
+		log.Printf("Running command %s", instruction)
 		history, execErr := pod.RunCommand(instruction)
 
 		// Means we hit the end of all instructions, can be marked as success
 		if index == len(s.Instructions)-1 {
-            s.Complete = true
+			s.Complete = true
 			s.Success = true
 		}
 
@@ -61,88 +69,88 @@ func (s *Stage) Run(metadata JobMetadata) error {
 			s.Success = false
 		}
 
-        reportErr := s.ReportStatus(history)
+		reportErr := s.ReportStatus(history)
 
-        // Kill job, can't connect to job server
-        if reportErr != nil {
-          s.Success = false
-          s.Complete = true
-          log.Printf("Error updating history: %+v\n", reportErr)
-          return errors.New("Stage run error")
-        }
+		// Kill job, can't connect to job server
+		if reportErr != nil {
+			s.Success = false
+			s.Complete = true
+			log.Printf("Error updating history: %+v\n", reportErr)
+			return errors.New("Stage run error")
+		}
 	}
 
-    if s.Success {
-      s.UpdateJobState("SUCCESS")
-    } else {
-      s.UpdateJobState("FAILED")
-    }
+	if s.Success {
+		s.UpdateJobState("SUCCESS")
+	} else {
+		s.UpdateJobState("FAILED")
+	}
 
-    pod.CleanupPod()
+	pod.CleanupPod()
 	return retErr
 }
 
 func (s *Stage) UpdateJobState(state string) error {
-  //Sends a PUT request to the job API that updates the current state of the job
+	//Sends a PUT request to the job API that updates the current state of the job
 
-  url := JOB_URL + "/jobs/" + s.Metadata.Id
-  payload := []byte(fmt.Sprintf(`{"state":"%s"}`, state))
+	url := JOB_URL + "/jobs/" + s.Metadata.Id
+	payload := []byte(fmt.Sprintf(`{"state":"%s"}`, state))
 
-  req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
+	req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
 
-  if reqErr != nil {
-    return reqErr
-  }
+	if reqErr != nil {
+		return reqErr
+	}
 
-  req.Header.Set("Content-Type", "application/json")
-  client := &http.Client{}
-  resp, err := client.Do(req)
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
 
-  if err != nil {
-    return err
-  }
+	if err != nil {
+		return err
+	}
 
-  defer resp.Body.Close()
+	defer resp.Body.Close()
 
-  if resp.StatusCode != 204 {
-    return errors.New("There was an error updating the job information")
-  }
+	if resp.StatusCode != 204 {
+		return errors.New("There was an error updating the job information")
+	}
 
-  return nil
+	return nil
 }
 
 func (s *Stage) ReportStatus(history History) error {
-  data, err := json.Marshal(history)
-  payload := []byte(fmt.Sprintf(`{"history":[%s]}`, data))
+	data, err := json.Marshal(history)
+	payload := []byte(fmt.Sprintf(`{"history":[%s]}`, data))
 
-  if err != nil {
-    return errors.New("Couldn't connect to jobs API")
-  }
+	if err != nil {
+		return errors.New("Couldn't connect to jobs API")
+	}
 
-  log.Printf("Updating history: %+v", history)
+	log.Printf("Updating history: %+v", history)
 
-  url := JOB_URL + "/histories/" + s.Metadata.HistoryId
-  req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
+	url := JOB_URL + "/histories/" + s.Metadata.HistoryId
+	req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
 
-  if reqErr != nil {
-    return reqErr
-  }
+	if reqErr != nil {
+		return reqErr
+	}
 
-  req.Header.Set("Content-Type", "application/json")
-  client := &http.Client{}
-  resp, err := client.Do(req)
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{}
+	resp, err := client.Do(req)
 
-  if err != nil {
-    return err
-  }
+	if err != nil {
+		return err
+	}
 
-  defer resp.Body.Close()
+	defer resp.Body.Close()
 
-  if resp.StatusCode != 204 {
-    return errors.New("There was an error updating the job information")
-  }
+	if resp.StatusCode != 204 {
+		return errors.New("There was an error updating the job information")
+	}
 
-  return nil
+	return nil
 }
 
 func getBaseStage() Stage {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"errors"
-    "log"
+	"log"
 )
 
 type Payload struct {
@@ -13,7 +13,7 @@ type Payload struct {
 func NewPayload(payload map[string]interface{}) (Payload, error) {
 	instance := Payload{}
 
-    // Constructs the instructions for the job
+	// Constructs the instructions for the job
 	if val, ok := payload["instructions"]; ok {
 		transformedVal := val.(map[string]interface{})
 
@@ -34,7 +34,7 @@ func NewPayload(payload map[string]interface{}) (Payload, error) {
 }
 
 func (p *Payload) GetHistoryId(payload map[string]interface{}) {
-  log.Println(payload)
+	log.Println(payload)
 }
 
 func (p *Payload) Run() error {

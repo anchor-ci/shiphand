@@ -2,8 +2,8 @@ package main
 
 import (
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-    "k8s.io/client-go/rest"
 
 	"log"
 )
@@ -21,7 +21,7 @@ func getInClusterClientSet() *kubernetes.Clientset {
 		log.Panicf(err.Error())
 	}
 
-    return clientset
+	return clientset
 }
 
 func getOutOfClusterClientSet(path string) *kubernetes.Clientset {
@@ -41,16 +41,16 @@ func getOutOfClusterClientSet(path string) *kubernetes.Clientset {
 }
 
 func getKubernetesClient(inCluster bool, path string) *kubernetes.Clientset {
-  if !inCluster {
-    return getOutOfClusterClientSet(path)
-  } else {
-    return getInClusterClientSet()
-  }
+	if !inCluster {
+		return getOutOfClusterClientSet(path)
+	} else {
+		return getInClusterClientSet()
+	}
 
-  return nil
+	return nil
 }
 
 func getRestConfig() *rest.Config {
-  config, _ := rest.InClusterConfig()
-  return config
+	config, _ := rest.InClusterConfig()
+	return config
 }

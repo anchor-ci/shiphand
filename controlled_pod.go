@@ -3,7 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
-    "strings"
+	"strings"
 
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,9 +15,9 @@ import (
 var PODS_NAMESPACE = "default"
 
 type ControlledPod struct {
-	Pod *apiv1.Pod
-	Id  string
-    Name string
+	Pod  *apiv1.Pod
+	Id   string
+	Name string
 }
 
 func NewControlledPod(name, image string) (ControlledPod, error) {
@@ -90,7 +90,7 @@ func (c *ControlledPod) WaitForStart() error {
 }
 
 func (c *ControlledPod) RunCommand(command string) (History, error) {
-    history := History{}
+	history := History{}
 	clientset := getKubernetesClient(true, "")
 	restClient := clientset.CoreV1().RESTClient()
 	req := restClient.Post().
@@ -105,11 +105,11 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 		Command:   []string{"/bin/sh", "-c", command},
 		Stdin:     false,
 		Stdout:    true,
-        Stderr:    true,
-        TTY:       false,
+		Stderr:    true,
+		TTY:       false,
 	}, scheme.ParameterCodec)
 
-    restconf := getRestConfig()
+	restconf := getRestConfig()
 
 	exec, err := remotecommand.NewSPDYExecutor(restconf, "POST", req.URL())
 
@@ -117,8 +117,8 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 		return history, err
 	}
 
-    outputBuffer := &strings.Builder{}
-    errBuffer := &strings.Builder{}
+	outputBuffer := &strings.Builder{}
+	errBuffer := &strings.Builder{}
 
 	opts := remotecommand.StreamOptions{
 		Stdin:  nil,
@@ -129,28 +129,28 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 
 	execErr := exec.Stream(opts)
 
-    if execErr != nil {
-      history.Failed = true
-      history.FailureText = execErr.Error()
-    } else {
-      history.Succeeded = true
-    }
+	if execErr != nil {
+		history.Failed = true
+		history.FailureText = execErr.Error()
+	} else {
+		history.Succeeded = true
+	}
 
-    history.Text = outputBuffer.String()
+	history.Text = outputBuffer.String()
 
 	return history, nil
 }
 
 func (p *ControlledPod) CleanupPod() error {
-  clientset := getKubernetesClient(true, "")
-  api := clientset.CoreV1().Pods(PODS_NAMESPACE)
+	clientset := getKubernetesClient(true, "")
+	api := clientset.CoreV1().Pods(PODS_NAMESPACE)
 
-  deletePolicy := metav1.DeletePropagationForeground
-  if err := api.Delete(p.Id, &metav1.DeleteOptions{
-      PropagationPolicy: &deletePolicy,
-  }); err != nil {
-      return err
-  }
+	deletePolicy := metav1.DeletePropagationForeground
+	if err := api.Delete(p.Id, &metav1.DeleteOptions{
+		PropagationPolicy: &deletePolicy,
+	}); err != nil {
+		return err
+	}
 
-  return nil
+	return nil
 }

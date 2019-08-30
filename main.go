@@ -1,16 +1,19 @@
 package main
 
 import (
-    "github.com/buger/jsonparser"
+	"github.com/buger/jsonparser"
 	"github.com/go-redis/redis"
+    "github.com/spf13/cobra"
 
-    "os"
+    "shiphand/cmd"
 	"encoding/json"
 	"log"
+	"os"
 )
 
 var REDIS_URL string = os.Getenv("REDIS_URL")
 var REDIS_PORT string = os.Getenv("REDIS_PORT")
+
 const JOB_KEY string = "job:v1:*"
 
 // Struct representing a job request from redis
@@ -21,6 +24,12 @@ type JobRequest struct {
 }
 
 func main() {
+    mainCmd := &cobra.Command{
+      Use:"app",
+    }
+
+    mainCmd.AddCommand(cmd.GetCommands()...)
+
 	client := redis.NewClient(&redis.Options{
 		Addr: REDIS_URL + ":" + REDIS_PORT,
 	})
@@ -70,11 +79,11 @@ func startJob(key string, payload string) {
 		log.Printf("Couldn't unmarshal payload %+v\n", err)
 	}
 
-    if historyId, jsonErr := jsonparser.GetString([]byte(payload), "history", "id"); jsonErr == nil {
-      metadata.HistoryId = historyId
-    } else {
-      log.Printf("Couldn't get history ID from: %s\n", payload)
-    }
+	if historyId, jsonErr := jsonparser.GetString([]byte(payload), "history", "id"); jsonErr == nil {
+		metadata.HistoryId = historyId
+	} else {
+		log.Printf("Couldn't get history ID from: %s\n", payload)
+	}
 
 	instructionSet := f.(map[string]interface{})
 	tSet := instructionSet["instruction_set"].(map[string]interface{})
