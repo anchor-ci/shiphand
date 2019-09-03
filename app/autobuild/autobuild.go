@@ -1,4 +1,4 @@
-package app
+package autobuild
 
 type AutoBuildConfig struct {
 	Buildpack string

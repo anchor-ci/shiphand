@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"shiphand/app/payload"
 )
 
 var REDIS_URL string = os.Getenv("REDIS_URL")
@@ -15,17 +16,12 @@ var REDIS_PORT string = os.Getenv("REDIS_PORT")
 
 const JOB_KEY string = "job:v1:*"
 
-// Struct representing a job request from redis
-type JobRequest struct {
-	JobId        string `json:"id"`
-	State        string `json:"state"`
-	RepositoryId string `json:"repository_id"`
-}
-
 func AppMain(c *cli.Context) {
-
-	log.Printf("Sup: %+v\n", c)
-	os.Exit(1)
+	// Check for debug mode
+	if c.String("run") != "" {
+		DebugMode(c.String("run"))
+		os.Exit(0)
+	}
 
 	client := redis.NewClient(&redis.Options{
 		Addr: REDIS_URL + ":" + REDIS_PORT,
@@ -34,7 +30,7 @@ func AppMain(c *cli.Context) {
 	_, err := client.Ping().Result()
 
 	if err != nil {
-		panic("Error connecting to job's database")
+		log.Fatal("Error connecting to Redis")
 	}
 
 	for /* ever */ {

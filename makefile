@@ -1,5 +1,5 @@
 dep:
-	go get -u
+	go get
 
 format:
 	go fmt .

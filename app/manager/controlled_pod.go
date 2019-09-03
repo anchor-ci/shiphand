@@ -1,15 +1,16 @@
-package app
+package manager
 
 import (
-	"errors"
-	"fmt"
-	"strings"
-
 	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
+
+    "shiphand/app/kubernetes"
+	"errors"
+	"fmt"
+	"strings"
 )
 
 var PODS_NAMESPACE = "default"
@@ -24,7 +25,7 @@ func NewControlledPod(name, image string) (ControlledPod, error) {
 	instance := ControlledPod{}
 
 	// TODO: Uncouple the kube client stuff from here
-	clientset := getKubernetesClient(true, "")
+	clientset := kubernetes.GetKubernetesClient(true, "")
 
 	req := &apiv1.Pod{
 		TypeMeta: metav1.TypeMeta{
@@ -61,7 +62,7 @@ func NewControlledPod(name, image string) (ControlledPod, error) {
 // and ready to accept commands. Returns an
 // error if one occurs during pod startup
 func (c *ControlledPod) WaitForStart() error {
-	clientset := getKubernetesClient(true, "")
+	clientset := kubernetes.GetKubernetesClient(true, "")
 
 	api := clientset.CoreV1()
 	options := metav1.ListOptions{
@@ -89,9 +90,10 @@ func (c *ControlledPod) WaitForStart() error {
 	return errors.New("Timed out")
 }
 
-func (c *ControlledPod) RunCommand(command string) (History, error) {
-	history := History{}
-	clientset := getKubernetesClient(true, "")
+func (c *ControlledPod) RunCommand(command string) (*Report, error) {
+	report := &Report{}
+
+	clientset := kubernetes.GetKubernetesClient(true, "")
 	restClient := clientset.CoreV1().RESTClient()
 	req := restClient.Post().
 		Resource("pods").
@@ -109,12 +111,12 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 		TTY:       false,
 	}, scheme.ParameterCodec)
 
-	restconf := getRestConfig()
+	restconf := kubernetes.GetRestConfig()
 
 	exec, err := remotecommand.NewSPDYExecutor(restconf, "POST", req.URL())
 
 	if err != nil {
-		return history, err
+		return report, err
 	}
 
 	outputBuffer := &strings.Builder{}
@@ -130,19 +132,19 @@ func (c *ControlledPod) RunCommand(command string) (History, error) {
 	execErr := exec.Stream(opts)
 
 	if execErr != nil {
-		history.Failed = true
-		history.FailureText = execErr.Error()
+		report.Failed = true
+		report.FailureText = execErr.Error()
 	} else {
-		history.Succeeded = true
+		report.Succeeded = true
 	}
 
-	history.Text = outputBuffer.String()
+	report.Text = outputBuffer.String()
 
-	return history, nil
+	return report, nil
 }
 
 func (p *ControlledPod) CleanupPod() error {
-	clientset := getKubernetesClient(true, "")
+	clientset := kubernetes.GetKubernetesClient(true, "")
 	api := clientset.CoreV1().Pods(PODS_NAMESPACE)
 
 	deletePolicy := metav1.DeletePropagationForeground

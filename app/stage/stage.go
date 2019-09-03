@@ -1,6 +1,9 @@
-package app
+package stage
 
 import (
+    "shiphand/app/autobuild"
+    "shiphand/app/manager"
+
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -13,7 +16,6 @@ import (
 var JOB_URL string = os.Getenv("JOB_URL")
 
 type Stage struct {
-	Metadata     JobMetadata
 	Image        string
 	Instructions []string
 	Name         string
@@ -23,18 +25,19 @@ type Stage struct {
 
 type StageConfig struct {
 	Clone     bool
-	AutoBuild AutoBuildConfig
+	AutoBuild autobuild.AutoBuildConfig
 	Script    []string
 	Image     string
 }
 
-func (s *Stage) Run(metadata JobMetadata) error {
-	s.Metadata = metadata
+func (s *Stage) Run(name string,
+                    jobId string,
+                    historyId string) error {
+
 	var retErr error = nil
 
 	// Create an anchor ci managed pod
-	podId := fmt.Sprintf("%s-%s", s.Metadata.Id, s.Name)
-	pod, err := NewControlledPod(podId, s.Image)
+	pod, err := manager.NewControlledPod(name, s.Image)
 
 	if err != nil {
 		retErr = err
@@ -43,7 +46,7 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	// Wait for pod to start before sending instructions
 	pod.WaitForStart()
 
-	updateErr := s.UpdateJobState("RUNNING")
+	updateErr := s.UpdateJobState(jobId, "RUNNING")
 
 	if updateErr != nil {
 		s.Success = false
@@ -57,7 +60,7 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	for index, instruction := range s.Instructions {
 		// Send series of instructions to pod
 		log.Printf("Running command %s", instruction)
-		history, execErr := pod.RunCommand(instruction)
+		report, execErr := pod.RunCommand(instruction)
 
 		// Means we hit the end of all instructions, can be marked as success
 		if index == len(s.Instructions)-1 {
@@ -65,11 +68,11 @@ func (s *Stage) Run(metadata JobMetadata) error {
 			s.Success = true
 		}
 
-		if execErr != nil || history.Failed {
+		if execErr != nil || report.Failed {
 			s.Success = false
 		}
 
-		reportErr := s.ReportStatus(history)
+		reportErr := s.ReportStatus(historyId, report)
 
 		// Kill job, can't connect to job server
 		if reportErr != nil {
@@ -81,19 +84,21 @@ func (s *Stage) Run(metadata JobMetadata) error {
 	}
 
 	if s.Success {
-		s.UpdateJobState("SUCCESS")
+		s.UpdateJobState(jobId, "SUCCESS")
 	} else {
-		s.UpdateJobState("FAILED")
+		s.UpdateJobState(jobId, "FAILED")
 	}
 
 	pod.CleanupPod()
 	return retErr
 }
 
-func (s *Stage) UpdateJobState(state string) error {
+// TODO: Decouple metadata from stage, move it up to job level.
+// Maybe use goroutine to communicate back to API?
+func (s *Stage) UpdateJobState(id string, state string) error {
 	//Sends a PUT request to the job API that updates the current state of the job
 
-	url := JOB_URL + "/jobs/" + s.Metadata.Id
+	url := JOB_URL + "/jobs/" + id
 	payload := []byte(fmt.Sprintf(`{"state":"%s"}`, state))
 
 	req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
@@ -119,17 +124,17 @@ func (s *Stage) UpdateJobState(state string) error {
 	return nil
 }
 
-func (s *Stage) ReportStatus(history History) error {
-	data, err := json.Marshal(history)
+func (s *Stage) ReportStatus(id string, report *manager.Report) error {
+	data, err := json.Marshal(report)
 	payload := []byte(fmt.Sprintf(`{"history":[%s]}`, data))
 
 	if err != nil {
 		return errors.New("Couldn't connect to jobs API")
 	}
 
-	log.Printf("Updating history: %+v", history)
+	log.Printf("Updating report: %+v", report)
 
-	url := JOB_URL + "/histories/" + s.Metadata.HistoryId
+	url := JOB_URL + "/histories/" + id
 	req, reqErr := http.NewRequest("PUT", url, bytes.NewBuffer(payload))
 
 	if reqErr != nil {
@@ -165,16 +170,16 @@ func getBaseStage() Stage {
 
 func NewStage(name string, payload interface{}) (Stage, error) {
 	instance := getBaseStage()
-	transformedVal := payload.(map[string]interface{})
+	transformedVal := payload.(map[interface{}]interface{})
 
 	if script, ok := transformedVal["script"].([]interface{}); ok {
-		for _, v := range script {
-			if instruction, ok := v.(string); ok {
-				instance.Instructions = append(instance.Instructions, instruction)
-			} else {
-				return instance, errors.New("Couldn't get instructions")
-			}
+		instructions, err := getInstructions(script)
+
+		if err != nil {
+			return instance, err
 		}
+
+		instance.Instructions = instructions
 	} else {
 		return instance, errors.New("Couldn't get instructions")
 	}
@@ -182,4 +187,18 @@ func NewStage(name string, payload interface{}) (Stage, error) {
 	instance.Name = name
 
 	return instance, nil
+}
+
+func getInstructions(instructions []interface{}) ([]string, error) {
+	instances := []string{}
+
+	for _, v := range instructions {
+		if instruction, ok := v.(string); ok {
+			instances = append(instances, instruction)
+		} else {
+			return instances, errors.New("Couldn't get instructions")
+		}
+	}
+
+	return instances, nil
 }

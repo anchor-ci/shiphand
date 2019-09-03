@@ -1,4 +1,4 @@
-package app
+package kubernetes
 
 import (
 	"k8s.io/client-go/kubernetes"
@@ -6,6 +6,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"log"
+	"os"
 )
 
 func getInClusterClientSet() *kubernetes.Clientset {
@@ -24,7 +25,11 @@ func getInClusterClientSet() *kubernetes.Clientset {
 	return clientset
 }
 
-func getOutOfClusterClientSet(path string) *kubernetes.Clientset {
+func getOutOfClusterClientSet() *kubernetes.Clientset {
+	path := os.Getenv("KUBECONFIG")
+
+	log.Printf("Using path to config: %s\n", path)
+
 	config, err := clientcmd.BuildConfigFromFlags("", path)
 
 	if err != nil {
@@ -40,9 +45,11 @@ func getOutOfClusterClientSet(path string) *kubernetes.Clientset {
 	return clientset
 }
 
-func getKubernetesClient(inCluster bool, path string) *kubernetes.Clientset {
-	if !inCluster {
-		return getOutOfClusterClientSet(path)
+func GetKubernetesClient(inCluster bool, path string) *kubernetes.Clientset {
+	env := os.Getenv("ENV")
+
+	if env == "local" {
+		return getOutOfClusterClientSet()
 	} else {
 		return getInClusterClientSet()
 	}
@@ -50,7 +57,7 @@ func getKubernetesClient(inCluster bool, path string) *kubernetes.Clientset {
 	return nil
 }
 
-func getRestConfig() *rest.Config {
+func GetRestConfig() *rest.Config {
 	config, _ := rest.InClusterConfig()
 	return config
 }

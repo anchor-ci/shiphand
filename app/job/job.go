@@ -1,17 +1,19 @@
-package app
+package job
 
 import (
+    "shiphand/app/stage"
 	"errors"
 )
 
 type Job struct {
 	Name   string
-	Stages []Stage
+	Stages []stage.Stage
 }
 
 func (j *Job) Run(metadata JobMetadata) (bool, error) {
 	for _, stage := range j.Stages {
-		err := stage.Run(metadata)
+      err := stage.Run("test-job", metadata.Id, metadata.HistoryId)
+
 		if err != nil {
 			return false, err
 		}
@@ -34,7 +36,7 @@ func (j *Job) Run(metadata JobMetadata) (bool, error) {
 // and sees if it needs to report any failure. Returns
 // a bool indicating if the job should continue, error
 // indicating an error within the function
-func (j *Job) InterStage(s *Stage) (bool, error) {
+func (j *Job) InterStage(s *stage.Stage) (bool, error) {
 	if !s.Complete {
 		return false, errors.New("Stage %s didn't complete")
 	}
@@ -48,10 +50,10 @@ func (j *Job) InterStage(s *Stage) (bool, error) {
 
 func NewJob(name string, payload interface{}) (Job, error) {
 	instance := Job{}
-	transformedVal := payload.(map[string]interface{})
+	transformedVal := payload.(map[interface{}]interface{})
 
 	for k, v := range transformedVal {
-		stage, err := NewStage(k, v)
+      stage, err := stage.NewStage(k.(string), v)
 
 		if err != nil {
 			return instance, err
@@ -63,4 +65,16 @@ func NewJob(name string, payload interface{}) (Job, error) {
 	instance.Name = name
 
 	return instance, nil
+}
+
+func (j *Job) DebugRun() error {
+	for _, currentStage := range j.Stages {
+      err := currentStage.DebugRun("debug-run")
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

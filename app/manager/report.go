@@ -1,6 +1,6 @@
-package app
+package manager
 
-type History struct {
+type Report struct {
 	FailureText string `json:"failureText"`
 	Text        string `json:"text"`
 	Failed      bool   `json:"failed"`

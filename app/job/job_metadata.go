@@ -1,4 +1,4 @@
-package app
+package job
 
 type JobMetadata struct {
 	Id        string `json:"id"`

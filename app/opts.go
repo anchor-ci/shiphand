@@ -9,8 +9,7 @@ import (
 func GetOpts() []cli.Flag {
 	return []cli.Flag{
 		cli.StringFlag{
-			Name:  "run",
-			Value: ".anchor-ci.yaml",
+			Name:  "run, r",
 			Usage: "For running a local CI definition",
 		},
 	}
