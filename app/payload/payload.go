@@ -15,7 +15,7 @@ type Payload struct {
 func PayloadFromJson(file string) (*Payload, error) {
 	payload := &Payload{}
 
-	jobs, err := job.CreateJobs(file)
+    jobs, err := CreateJobs(file)
 
 	if err != nil {
 		return payload, err
@@ -50,7 +50,7 @@ func jobsFromStrInter(payload map[string]interface{}) ([]job.Job, error) {
 	jobs := []job.Job{}
 
 	for k, v := range payload {
-      job, err := NewJob(k, v)
+      job, err := job.NewJob(k, v)
 
 		if err != nil {
 			return jobs, err
@@ -63,20 +63,21 @@ func jobsFromStrInter(payload map[string]interface{}) ([]job.Job, error) {
 }
 
 func CreateJobs(file string) ([]job.Job, error) {
+    var vals map[string]interface{}
 	jobs := []job.Job{}
-
-	vals := make(map[string]interface{}, 1)
 	err := yaml.Unmarshal([]byte(file), &vals)
 
 	if err != nil {
 		return jobs, err
 	}
 
-	for name, job := range vals {
-		jerb, err := job.NewJob(name, job)
+	for name, currentJob := range vals {
+        jerb, err := job.NewJob(name, currentJob)
+
 		if err != nil {
 			return jobs, err
 		}
+
 		jobs = append(jobs, jerb)
 	}
 

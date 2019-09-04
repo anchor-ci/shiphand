@@ -6,6 +6,5 @@ import (
 
 func (s *Stage) DebugRun(name string) error {
   log.Println("Debug runnin!")
-
   return nil
 }

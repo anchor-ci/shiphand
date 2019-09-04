@@ -1,6 +1,8 @@
 package app
 
 import (
+    shiphand_payload "shiphand/app/payload"
+
 	"io/ioutil"
 	"log"
 )
@@ -14,7 +16,7 @@ func DebugMode(file string) {
 		log.Fatalf("Couldn't create payload from:\n %s", file)
 	}
 
-	payload, err := PayloadFromJson(string(contents))
+    payload, err := shiphand_payload.PayloadFromJson(string(contents))
 
 	log.Printf("Payload:\n %+v", payload)
 
@@ -22,12 +24,12 @@ func DebugMode(file string) {
 		log.Fatalf("Couldn't create payload from:\n %s\nCause:%v\n", file, err)
 	}
 
-	Run(&payload)
+    Run(payload)
 }
 
-func Run(payload *Payload) error {
+func Run(payload *shiphand_payload.Payload) error {
 	for _, job := range payload.Jobs {
-		_, err := job.DebugRun()
+        err := job.DebugRun()
 
 		if err != nil {
 			return err
