@@ -18,8 +18,6 @@ func DebugMode(file string) {
 
     payload, err := shiphand_payload.PayloadFromJson(string(contents))
 
-	log.Printf("Payload:\n %+v", payload)
-
 	if err != nil {
 		log.Fatalf("Couldn't create payload from:\n %s\nCause:%v\n", file, err)
 	}
@@ -29,6 +27,8 @@ func DebugMode(file string) {
 
 func Run(payload *shiphand_payload.Payload) error {
 	for _, job := range payload.Jobs {
+        log.Printf("Running job: %s\n", job.Name)
+
         err := job.DebugRun()
 
 		if err != nil {

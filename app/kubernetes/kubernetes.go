@@ -28,8 +28,6 @@ func getInClusterClientSet() *kubernetes.Clientset {
 func getOutOfClusterClientSet() *kubernetes.Clientset {
 	path := os.Getenv("KUBECONFIG")
 
-	log.Printf("Using path to config: %s\n", path)
-
 	config, err := clientcmd.BuildConfigFromFlags("", path)
 
 	if err != nil {

@@ -2,7 +2,10 @@ package job
 
 import (
     "shiphand/app/stage"
+    "math/rand"
 	"errors"
+    "log"
+    "fmt"
 )
 
 type Job struct {
@@ -12,7 +15,8 @@ type Job struct {
 
 func (j *Job) Run(metadata JobMetadata) (bool, error) {
 	for _, stage := range j.Stages {
-      err := stage.Run("test-job", metadata.Id, metadata.HistoryId)
+        // TODO: Remove this name v
+        err := stage.Run("test-job", metadata.Id, metadata.HistoryId)
 
 		if err != nil {
 			return false, err
@@ -69,9 +73,14 @@ func NewJob(name string, payload interface{}) (Job, error) {
 
 func (j *Job) DebugRun() error {
 	for _, currentStage := range j.Stages {
-      err := currentStage.DebugRun("debug-run")
+        log.Printf("> Running stage: %s\n", currentStage.Name)
+
+        // Attach a random # to prevent pod naming collisions
+        name := fmt.Sprintf("debug-run-%d", rand.Intn(10000000))
+        err := currentStage.DebugRun(name)
 
 		if err != nil {
+          log.Printf("> Stage [%s] failed with reason: %s", currentStage.Name, err)
 			return err
 		}
 	}
