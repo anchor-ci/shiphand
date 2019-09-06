@@ -36,6 +36,7 @@ func NewControlledPod(name, image string) (ControlledPod, error) {
 			Name: name,
 			Labels: map[string]string{
 				"job-id": name,
+                "type": "job",
 			},
 		},
 		Spec: apiv1.PodSpec{
@@ -111,7 +112,11 @@ func (c *ControlledPod) RunCommand(command string) (*Report, error) {
 		TTY:       false,
 	}, scheme.ParameterCodec)
 
-	restconf := kubernetes.GetRestConfig()
+	restconf, cfgErr := kubernetes.GetRestConfig()
+
+    if cfgErr != nil {
+      return report, cfgErr
+    }
 
 	exec, err := remotecommand.NewSPDYExecutor(restconf, "POST", req.URL())
 

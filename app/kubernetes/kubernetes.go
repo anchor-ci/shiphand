@@ -55,7 +55,13 @@ func GetKubernetesClient(inCluster bool, path string) *kubernetes.Clientset {
 	return nil
 }
 
-func GetRestConfig() *rest.Config {
-	config, _ := rest.InClusterConfig()
-	return config
+func GetRestConfig() (*rest.Config, error) {
+	env := os.Getenv("ENV")
+
+	if env == "local" {
+      path := os.Getenv("KUBECONFIG")
+      return clientcmd.BuildConfigFromFlags("", path)
+	} else {
+      return rest.InClusterConfig()
+	}
 }

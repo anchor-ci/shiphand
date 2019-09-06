@@ -2,6 +2,7 @@ package job
 
 import (
     "shiphand/app/stage"
+    "time"
     "math/rand"
 	"errors"
     "log"
@@ -75,8 +76,12 @@ func (j *Job) DebugRun() error {
 	for _, currentStage := range j.Stages {
         log.Printf("> Running stage: %s\n", currentStage.Name)
 
+        // Create a new time based seed
+        source := rand.NewSource(time.Now().UnixNano())
+        random := rand.New(source)
+
         // Attach a random # to prevent pod naming collisions
-        name := fmt.Sprintf("debug-run-%d", rand.Intn(10000000))
+        name := fmt.Sprintf("debug-run-%d", random.Intn(10000000))
         err := currentStage.DebugRun(name)
 
 		if err != nil {

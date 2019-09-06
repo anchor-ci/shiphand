@@ -27,7 +27,7 @@ func (s *Stage) DebugRun(name string) error {
   // Iterate through instructions and send to pod for execution
   for index, instruction := range s.Instructions {
 
-      log.Printf(">> Running instruction {%s}\n", instruction)
+      log.Printf(">> Running instruction {%s}", instruction)
 
       report, execErr := pod.RunCommand(instruction)
 
@@ -37,19 +37,19 @@ func (s *Stage) DebugRun(name string) error {
       }
 
       if s.Complete {
-          s.Success = execErr != nil || report.Failed
+          s.Success = execErr == nil && !report.Failed
       }
   }
-
-  pod.CleanupPod()
-
-  log.Printf(">> Cleaning up pod [%s]\n", name)
 
   if s.Success {
     log.Printf(">> Stage [%s] passed\n", name)
   } else {
     return errors.New("Stage failed")
   }
+
+  pod.CleanupPod()
+
+  log.Printf(">> Cleaning up pod [%s]\n", name)
 
   return nil
 }
