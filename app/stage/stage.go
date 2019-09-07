@@ -1,7 +1,6 @@
 package stage
 
 import (
-    "shiphand/app/autobuild"
     "shiphand/app/manager"
 
 	"bytes"
@@ -13,22 +12,8 @@ import (
 	"os"
 )
 
+var STAGE_DATABASE map[string]func(int) = GetStageDatabase()
 var JOB_URL string = os.Getenv("JOB_URL")
-
-type Stage struct {
-	Image        string
-	Instructions []string
-	Name         string
-	Complete     bool
-	Success      bool
-}
-
-type StageConfig struct {
-	Clone     bool
-	AutoBuild autobuild.AutoBuildConfig
-	Script    []string
-	Image     string
-}
 
 func (s *Stage) Run(name string,
                     jobId string,
@@ -37,7 +22,7 @@ func (s *Stage) Run(name string,
 	var retErr error = nil
 
 	// Create an anchor ci managed pod
-	pod, err := manager.NewControlledPod(name, s.Image)
+	pod, err := manager.NewControlledPod(name, s.Config.Image)
 
 	if err != nil {
 		retErr = err
@@ -57,13 +42,13 @@ func (s *Stage) Run(name string,
 	log.Printf("Controlled pod %s is ready to take commands\n", pod.Id)
 
 	// Iterate through instructions and send to pod for execution
-	for index, instruction := range s.Instructions {
+	for index, instruction := range s.Config.Script {
 		// Send series of instructions to pod
 		log.Printf("Running command %s", instruction)
 		report, execErr := pod.RunCommand(instruction)
 
 		// Means we hit the end of all instructions, can be marked as success
-		if index == len(s.Instructions)-1 {
+		if index == len(s.Config.Script)-1 {
 			s.Complete = true
 			s.Success = true
 		}
@@ -158,32 +143,34 @@ func (s *Stage) ReportStatus(id string, report *manager.Report) error {
 	return nil
 }
 
-func getBaseStage() Stage {
-	instance := Stage{}
-
-	instance.Image = "debian:stable-slim"
-	instance.Complete = false
-	instance.Success = false
-
-	return instance
-}
-
 func NewStage(name string, payload interface{}) (Stage, error) {
 	instance := getBaseStage()
-	transformedVal := payload.(map[interface{}]interface{})
 
-	if script, ok := transformedVal["script"].([]interface{}); ok {
-		instructions, err := getInstructions(script)
+    for k, v := range payload.(map[interface{}]interface{}) {
+      switch k := k.(type) {
+        case string:
+          switch k {
+          case "auto-build":
+            log.Println("Auto-buildin")
+          }
+          log.Printf("Key: %+v, value: %+v\n", k, v)
+      }
+    }
 
-		if err != nil {
-			return instance, err
-		}
+    panic("Bad!")
 
-		instance.Instructions = instructions
-	} else {
-		return instance, errors.New("Couldn't get instructions")
-	}
-
+//	if script, ok := transformedVal["script"].([]interface{}); ok {
+//		instructions, err := getInstructions(script)
+//
+//		if err != nil {
+//			return instance, err
+//		}
+//
+//		instance.Config.Script = instructions
+//	} else {
+//		return instance, errors.New("Couldn't get instructions")
+//	}
+//
 	instance.Name = name
 
 	return instance, nil
