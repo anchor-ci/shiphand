@@ -1,55 +1,55 @@
 package stage
 
 import (
-  "shiphand/app/manager"
-  "errors"
-  "log"
+	"errors"
+	"log"
+	"shiphand/app/manager"
 )
 
 func (s *Stage) DebugRun(name string) error {
-  log.Printf(">> Pod [%s] being created..\n", name)
+	log.Printf(">> Pod [%s] being created..\n", name)
 
-  // Create an anchor ci managed pod
-  pod, err := manager.NewControlledPod(name, s.Config.Image)
+	// Create an anchor ci managed pod
+	pod, err := manager.NewControlledPod(name, s.Config.Image)
 
-  log.Printf(">> Pod [%s] created!\n", name)
+	log.Printf(">> Pod [%s] created!\n", name)
 
-  if err != nil {
-    return err
-  }
+	if err != nil {
+		return err
+	}
 
-  err = pod.WaitForStart()
+	err = pod.WaitForStart()
 
-  if err != nil {
-    return err
-  }
+	if err != nil {
+		return err
+	}
 
-  // Iterate through instructions and send to pod for execution
-  for index, instruction := range s.Config.Script {
+	// Iterate through instructions and send to pod for execution
+	for index, instruction := range s.Config.Script {
 
-      log.Printf(">> Running instruction {%s}", instruction)
+		log.Printf(">> Running instruction {%s}", instruction)
 
-      report, execErr := pod.RunCommand(instruction)
+		report, execErr := pod.RunCommand(instruction)
 
-      // Means we hit the end of all instructions, can be marked as success
-      if index == len(s.Config.Script)-1 {
-          s.Complete = true
-      }
+		// Means we hit the end of all instructions, can be marked as success
+		if index == len(s.Config.Script)-1 {
+			s.Complete = true
+		}
 
-      if s.Complete {
-          s.Success = execErr == nil && !report.Failed
-      }
-  }
+		if s.Complete {
+			s.Success = execErr == nil && !report.Failed
+		}
+	}
 
-  if s.Success {
-    log.Printf(">> Stage [%s] passed\n", name)
-  } else {
-    return errors.New("Stage failed")
-  }
+	if s.Success {
+		log.Printf(">> Stage [%s] passed\n", name)
+	} else {
+		return errors.New("Stage failed")
+	}
 
-  pod.CleanupPod()
+	pod.CleanupPod()
 
-  log.Printf(">> Cleaning up pod [%s]\n", name)
+	log.Printf(">> Cleaning up pod [%s]\n", name)
 
-  return nil
+	return nil
 }

@@ -3,7 +3,7 @@ dep:
 
 format:
 	go fmt .
-	go fmt ./app
+	go fmt ./app/...
 
 clean:
 	rm shiphand

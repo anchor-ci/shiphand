@@ -1,19 +1,18 @@
 FROM golang:1.12.7
 
-RUN mkdir -p /build
 WORKDIR /build
 
 COPY ./go.mod ./
 
 RUN go get
 
-COPY ./*.go ./
+COPY main.go .
+COPY app /build/app
 
 RUN go build -o shiphand *.go
 
 FROM golang:1.12.7
 
-RUN mkdir -p /app
 WORKDIR /app
 
 COPY --from=0 /build/shiphand .

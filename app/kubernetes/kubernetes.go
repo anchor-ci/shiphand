@@ -59,9 +59,9 @@ func GetRestConfig() (*rest.Config, error) {
 	env := os.Getenv("ENV")
 
 	if env == "local" {
-      path := os.Getenv("KUBECONFIG")
-      return clientcmd.BuildConfigFromFlags("", path)
+		path := os.Getenv("KUBECONFIG")
+		return clientcmd.BuildConfigFromFlags("", path)
 	} else {
-      return rest.InClusterConfig()
+		return rest.InClusterConfig()
 	}
 }

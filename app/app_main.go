@@ -5,11 +5,11 @@ import (
 	"github.com/go-redis/redis"
 	"github.com/urfave/cli"
 
-    shiphand_payload "shiphand/app/payload"
-    "shiphand/app/job"
 	"encoding/json"
 	"log"
 	"os"
+	"shiphand/app/job"
+	shiphand_payload "shiphand/app/payload"
 )
 
 var REDIS_URL string = os.Getenv("REDIS_URL")
@@ -63,7 +63,7 @@ func AppMain(c *cli.Context) {
 
 func startJob(key string, payload string) {
 	var f interface{}
-    metadata := job.JobMetadata{}
+	metadata := job.JobMetadata{}
 
 	if err := json.Unmarshal([]byte(payload), &metadata); err != nil {
 		log.Printf("Couldn't unmarshal payload into metadata %+v\n", err)
@@ -81,7 +81,7 @@ func startJob(key string, payload string) {
 
 	instructionSet := f.(map[string]interface{})
 	tSet := instructionSet["instruction_set"].(map[string]interface{})
-    finalPayload, payloadErr := shiphand_payload.NewPayload(tSet)
+	finalPayload, payloadErr := shiphand_payload.NewPayload(tSet)
 
 	finalPayload.Metadata = metadata
 

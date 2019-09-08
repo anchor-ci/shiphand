@@ -7,9 +7,9 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/remotecommand"
 
-    "shiphand/app/kubernetes"
 	"errors"
 	"fmt"
+	"shiphand/app/kubernetes"
 	"strings"
 )
 
@@ -36,7 +36,7 @@ func NewControlledPod(name, image string) (ControlledPod, error) {
 			Name: name,
 			Labels: map[string]string{
 				"job-id": name,
-                "type": "job",
+				"type":   "job",
 			},
 		},
 		Spec: apiv1.PodSpec{
@@ -114,9 +114,9 @@ func (c *ControlledPod) RunCommand(command string) (*Report, error) {
 
 	restconf, cfgErr := kubernetes.GetRestConfig()
 
-    if cfgErr != nil {
-      return report, cfgErr
-    }
+	if cfgErr != nil {
+		return report, cfgErr
+	}
 
 	exec, err := remotecommand.NewSPDYExecutor(restconf, "POST", req.URL())
 

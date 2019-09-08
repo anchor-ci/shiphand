@@ -1,21 +1,26 @@
 package app
 
 import (
-    "shiphand/app/job"
 	"gopkg.in/yaml.v2"
+	"shiphand/app/job"
 
+	"encoding/json"
 	"errors"
 )
 
+type Definition struct {
+	Payload Payload `json:"payload"`
+}
+
 type Payload struct {
-  Metadata job.JobMetadata
-	Jobs     []job.Job
+	Metadata job.JobMetadata
+	Jobs     []job.Job `json:"jobs"`
 }
 
 func PayloadFromJson(file string) (*Payload, error) {
 	payload := &Payload{}
 
-    jobs, err := CreateJobs(file)
+	jobs, err := CreateJobs(file)
 
 	if err != nil {
 		return payload, err
@@ -50,7 +55,7 @@ func jobsFromStrInter(payload map[string]interface{}) ([]job.Job, error) {
 	jobs := []job.Job{}
 
 	for k, v := range payload {
-      job, err := job.NewJob(k, v)
+		job, err := job.NewJob(k, v)
 
 		if err != nil {
 			return jobs, err
@@ -63,7 +68,7 @@ func jobsFromStrInter(payload map[string]interface{}) ([]job.Job, error) {
 }
 
 func CreateJobs(file string) ([]job.Job, error) {
-    var vals map[string]interface{}
+	var vals map[string]interface{}
 	jobs := []job.Job{}
 	err := yaml.Unmarshal([]byte(file), &vals)
 
@@ -72,7 +77,7 @@ func CreateJobs(file string) ([]job.Job, error) {
 	}
 
 	for name, currentJob := range vals {
-        jerb, err := job.NewJob(name, currentJob)
+		jerb, err := job.NewJob(name, currentJob)
 
 		if err != nil {
 			return jobs, err
