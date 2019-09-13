@@ -4,7 +4,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"shiphand/app/job"
 
-	"encoding/json"
 	"errors"
 )
 

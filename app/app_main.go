@@ -9,13 +9,7 @@ import (
 	"log"
 	"os"
 	"shiphand/app/job"
-	shiphand_payload "shiphand/app/payload"
 )
-
-var REDIS_URL string = os.Getenv("REDIS_URL")
-var REDIS_PORT string = os.Getenv("REDIS_PORT")
-
-const JOB_KEY string = "job:v1:*"
 
 func AppMain(c *cli.Context) {
 	// Check for debug mode
@@ -25,7 +19,7 @@ func AppMain(c *cli.Context) {
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr: REDIS_URL + ":" + REDIS_PORT,
+		Addr: c.String("redis-host") + ":" + c.String("redis-port"),
 	})
 
 	_, err := client.Ping().Result()
@@ -36,7 +30,7 @@ func AppMain(c *cli.Context) {
 
 	for /* ever */ {
 		// TODO: Make this activated on pubsub, this is going to hammer the server
-		jobs, err := client.Keys(JOB_KEY).Result()
+		jobs, err := client.Keys(c.String("key")).Result()
 
 		if err == nil {
 			for _, job := range jobs {
@@ -48,7 +42,6 @@ func AppMain(c *cli.Context) {
 					continue
 				}
 
-				log.Printf("Starting job: %s\n", job)
 				go startJob(job, jid)
 
 				_, delErr := client.Del(job).Result()
@@ -79,22 +72,5 @@ func startJob(key string, payload string) {
 		log.Printf("Couldn't get history ID from: %s\n", payload)
 	}
 
-	instructionSet := f.(map[string]interface{})
-	tSet := instructionSet["instruction_set"].(map[string]interface{})
-	finalPayload, payloadErr := shiphand_payload.NewPayload(tSet)
-
-	finalPayload.Metadata = metadata
-
-	if payloadErr != nil {
-		log.Printf("Failed to create payload for %s\n", key)
-		return
-	}
-
-	log.Printf("Created payload: %d, starting.\n", finalPayload.Metadata.Id)
-
-	err := finalPayload.Run()
-
-	if err != nil {
-		log.Printf("Error running job: %+v\n", err)
-	}
+    log.Println(payload)
 }

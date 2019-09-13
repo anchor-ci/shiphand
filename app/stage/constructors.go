@@ -10,25 +10,8 @@ import (
 
 var JOB_URL string = os.Getenv("JOB_URL")
 
-func getBaseConfig() *StageConfig {
-	cfg := &StageConfig{}
-	cfg.Image = "debian:stable-slim"
-
-	return cfg
-}
-
-func getBaseStage() Stage {
-	instance := Stage{}
-
-	instance.Complete = false
-	instance.Success = false
-	instance.Config = getBaseConfig()
-
-	return instance
-}
-
 func NewStage(name string, payload interface{}) (Stage, error) {
-	instance := getBaseStage()
+	instance := Stage{}
 	final := make(map[string]interface{})
 
 	for k, v := range payload.(map[interface{}]interface{}) {

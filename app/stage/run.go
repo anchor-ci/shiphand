@@ -14,7 +14,7 @@ func (s *Stage) Run(name string,
 	var retErr error = nil
 
 	// Create an anchor ci managed pod
-	pod, err := manager.NewControlledPod(name, s.Config.Image)
+	pod, err := manager.NewControlledPod(name, s.Image)
 
 	if err != nil {
 		retErr = err
@@ -34,13 +34,13 @@ func (s *Stage) Run(name string,
 	log.Printf("Controlled pod %s is ready to take commands\n", pod.Id)
 
 	// Iterate through instructions and send to pod for execution
-	for index, instruction := range s.Config.Script {
+	for index, instruction := range s.Script {
 		// Send series of instructions to pod
 		log.Printf("Running command %s", instruction)
 		report, execErr := pod.RunCommand(instruction)
 
 		// Means we hit the end of all instructions, can be marked as success
-		if index == len(s.Config.Script)-1 {
+		if index == len(s.Script)-1 {
 			s.Complete = true
 			s.Success = true
 		}
